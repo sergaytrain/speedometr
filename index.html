@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>speedometer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        
+        .speedometer {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background-color: #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .speed-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            font-weight: bold;
+            height: 120px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .digit {
+            display: inline-block;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            position: relative;
+        }
+        
+        .new-digit {
+            position: absolute;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .unit {
+            font-size: 1.5rem;
+            margin-left: 10px;
+            align-self: flex-end;
+            padding-bottom: 10px;
+        }
+        
+        .accuracy {
+            position: absolute;
+            bottom: 20px;
+            font-size: 0.8rem;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="speedometer">
+        <div class="speed-display" id="speedDisplay">
+            <div class="digit">0</div>
+            <span class="unit">км/ч</span>
+        </div>
+        <div class="accuracy" id="accuracy">Точность: высокая</div>
+    </div>
+
+    <script>
+        let lastSpeed = 0;
+        let digitsElements = [];
+        const speedDisplay = document.getElementById('speedDisplay');
+        const accuracyElement = document.getElementById('accuracy');
+        
+        function updateSpeed(speed) {
+            speed = Math.round(speed);
+            
+            // Обновляем точность
+            updateAccuracy();
+            
+            // Если скорость не изменилась, ничего не делаем
+            if (speed === lastSpeed) return;
+            
+            const speedStr = speed.toString();
+            const lastSpeedStr = lastSpeed.toString();
+            
+            // Определяем направление изменения
+            const isIncreasing = speed > lastSpeed;
+            
+            // Создаем новые цифры
+            const newDigits = [];
+            for (let i = 0; i < speedStr.length; i++) {
+                const newDigit = document.createElement('div');
+                newDigit.className = 'digit new-digit';
+                newDigit.textContent = speedStr[i];
+                newDigits.push(newDigit);
+            }
+            
+            // Если количество цифр изменилось, добавляем/удаляем цифры с анимацией
+            if (speedStr.length !== lastSpeedStr.length) {
+                // Удаляем все текущие цифры
+                while (speedDisplay.firstChild.className !== 'unit') {
+                    speedDisplay.removeChild(speedDisplay.firstChild);
+                }
+                
+                // Добавляем новые цифры перед единицами измерения
+                newDigits.forEach((digit, index) => {
+                    speedDisplay.insertBefore(digit, speedDisplay.querySelector('.unit'));
+                    
+                    // Анимация появления новой цифры
+                    setTimeout(() => {
+                        digit.classList.remove('new-digit');
+                        digit.style.opacity = '1';
+                        digit.style.transform = 'translateY(0)';
+                        
+                        // Если это не первая цифра, сдвигаем предыдущие
+                        if (index > 0) {
+                            newDigits[index-1].style.transform = 'translateX(-10px)';
+                        }
+                    }, index * 100);
+                });
+            } else {
+                // Количество цифр не изменилось - просто анимируем изменение
+                const currentDigits = Array.from(speedDisplay.querySelectorAll('.digit'));
+                
+                currentDigits.forEach((digit, index) => {
+                    if (speedStr[index] !== lastSpeedStr[index]) {
+                        const newDigit = newDigits[index];
+                        speedDisplay.insertBefore(newDigit, digit);
+                        
+                        // Анимация для новой цифры
+                        setTimeout(() => {
+                            newDigit.classList.remove('new-digit');
+                            newDigit.style.opacity = '1';
+                            newDigit.style.transform = isIncreasing ? 'translateY(-20px)' : 'translateY(20px)';
+                            
+                            // Анимация для старой цифры
+                            digit.style.opacity = '0';
+                            digit.style.transform = isIncreasing ? 'translateY(20px)' : 'translateY(-20px)';
+                            
+                            // Удаляем старую цифру после анимации
+                            setTimeout(() => {
+                                speedDisplay.removeChild(digit);
+                            }, 300);
+                        }, index * 100);
+                    }
+                });
+            }
+            
+            lastSpeed = speed;
+        }
+        
+        function updateAccuracy() {
+            const accuracy = Math.random() * 10;
+            let accuracyText = '';
+            
+            if (accuracy < 3) {
+                accuracyText = 'Точность: высокая';
+            } else if (accuracy < 6) {
+                accuracyText = 'Точность: средняя';
+            } else {
+                accuracyText = 'Точность: низкая';
+            }
+            
+            accuracyElement.textContent = accuracyText;
+        }
+        
+        // Имитация изменения скорости для демонстрации
+        function demo() {
+            let speed = 0;
+            const interval = setInterval(() => {
+                speed += Math.floor(Math.random() * 5);
+                if (speed > 120) {
+                    speed = 0;
+                }
+                updateSpeed(speed);
+            }, 2000);
+        }
+        
+        
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const speed = position.coords.speed !== null ? 
+                                 position.coords.speed * 3.6 : 0; // Конвертация м/с в км/ч
+                    updateSpeed(speed);
+                },
+                (error) => {
+                    console.error("Ошибка геолокации:", error);
+                    updateSpeed(0);
+                },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            console.log("Геолокация не поддерживается");
+            updateSpeed(0);
+        }
+    </script>
+</body>
+</html>
